@@ -1,0 +1,21 @@
+{
+  "extends": "../../packages/config/tsconfig/base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "verbatimModuleSyntax": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": true,
+    "incremental": true,
+    "noEmit": false,
+    "outDir": "./dist"
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

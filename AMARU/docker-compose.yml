@@ -1,0 +1,88 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-amaru}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amaru_local_only}
+      POSTGRES_DB: ${POSTGRES_DB:-amaru}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-amaru}:${POSTGRES_PASSWORD:-amaru_local_only}@db:5432/${POSTGRES_DB:-amaru}?schema=public
+    command:
+      - pnpm
+      - --filter
+      - "@amaru/api"
+      - db:migrate:deploy
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      API_PORT: 3000
+      WEB_ORIGIN: http://localhost:${WEB_PORT:-5173}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-amaru}:${POSTGRES_PASSWORD:-amaru_local_only}@db:5432/${POSTGRES_DB:-amaru}?schema=public
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:${API_PORT:-3000}
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://127.0.0.1/
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres_data:
+    name: amaru_postgres_data

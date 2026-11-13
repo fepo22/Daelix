@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CustomerType {
+  PERSON
+  COMPANY
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Customer {
+  id          String         @id @default(cuid())
+  type        CustomerType
+  name        String
+  taxId       String?        @unique
+  email       String?        @unique
+  phone       String?
+  address     String?
+  locality    String?
+  notes       String?
+  status      CustomerStatus @default(ACTIVE)
+  priceListId String?
+  priceList   PriceList?     @relation(fields: [priceListId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([name])
+  @@index([type, status])
+  @@index([priceListId])
+}
+
+model PriceList {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  isActive    Boolean    @default(true)
+  customers   Customer[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
